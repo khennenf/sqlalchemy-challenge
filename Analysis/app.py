@@ -1,29 +1,3 @@
-# # 1. import Flask
-# from flask import Flask
-
-# # 2. Create an app, being sure to pass __name__
-# app = Flask(__name__)
-
-
-# # 3. Define what to do when a user hits the index route
-# @app.route("/")
-# def home():
-#     print("Server received request for 'Home' page...")
-#     return "Welcome to my 'Home' page!"
-
-
-# # 4. Define what to do when a user hits the /about route
-# @app.route("/about")
-# def about():
-#     print("Server received request for 'About' page...")
-#     return "Welcome to my 'About' page!"
-
-
-# if __name__ == "__main__":
-#     app.run(debug=True)
-
-
-
 import numpy as np
 import datetime as dt
 
@@ -61,6 +35,7 @@ def home():
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br>"
         f"/api/v1.0/tobs<br>"
+        f"/api/v1.0/<start>` and `/api/v1.0/<start>/<end>"
     )
 
 
@@ -89,25 +64,47 @@ def stations():
     #Return results in json list
     return jsonify(results)
 
-@app.route("api/v1.0/tobs")
+
+#############################################################################
+@app.route("/api/v1.0/tobs")
 def tobs():
     #Create session
     session = Session(engine)
 
-    #Query for most active station
-    results = session.query(station.name).all()
+#  * Query the dates and temperature observations of the most active station for the last year of data.
+    session.query(measurement.date).order_by(measurement.date.desc()).first()
+    latest_date = dt.date(2017,8,23)
+    past_year = dt.date(2017, 8, 23) - dt.timedelta(days=366)
+    past_year_start = dt.date(2016, 8, 22)
+    previous_year = dt.date(2016, 8, 22) - dt.timedelta(days=366)
+    session.query(measurement.date, measurement.prcp).\
+        filter(measurement.date < latest_date).\
+        filter(measurement.date > past_year).all()
+    most_active = session.query(measurement.station).\
+        group_by(measurement.station).order_by(func.count(measurement.tobs).desc()).first()   
+    results = session.query(measurement.station, measurement.date, measurement.tobs).\
+        filter(measurement.station == most_active).\
+        filter(measurement.date < past_year_start).\
+        filter(measurement.date > previous_year).all()
+    session.close()
 
-#     # Create a dictionary from the row data and append to a list of all_passengers
-#     all_passengers = []
-#     for name, age, sex in results:
-#         passenger_dict = {}
-#         passenger_dict["name"] = name
-#         passenger_dict["age"] = age
-#         passenger_dict["sex"] = sex
-#         all_passengers.append(passenger_dict)
-
-#     return jsonify(all_passengers)
-
+    return jsonify(results)
+#################################    
+@app.route("/api/v1.0/date")
+def tobs_date():
+# Return a JSON list of the minimum temperature, the average temperature, and the max temperature for a given start or start-end range.
+# When given the start only, calculate TMIN, TAVG, and TMAX for all dates greater than and equal to the start date.
+# When given the start and the end date, calculate the TMIN, TAVG, and TMAX for dates between the start and end date inclusive.
+    session = Session(engine)
+    date = dt.date(2017, 8, 21)
+    results_list = session.query(measurement.date, func.min(measurement.tobs), func.max(measurement.tobs),
+              func.avg(measurement.tobs)).\
+              group_by(measurement.date).\
+              filter(measurement.date >= date).all()
+    for check_date in results_list:
+        check_date = date
+        return jsonify(results_list)
+    session.close()
 
 if __name__ == '__main__':
     app.run(debug=True)
