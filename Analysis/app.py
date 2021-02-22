@@ -83,28 +83,51 @@ def tobs():
     most_active = session.query(measurement.station).\
         group_by(measurement.station).order_by(func.count(measurement.tobs).desc()).first()   
     results = session.query(measurement.station, measurement.date, measurement.tobs).\
-        filter(measurement.station == most_active).\
+        filter(measurement.station == 'USC00519281').\
         filter(measurement.date < past_year_start).\
         filter(measurement.date > previous_year).all()
     session.close()
 
     return jsonify(results)
 #################################    
-@app.route("/api/v1.0/date")
-def tobs_date():
-# Return a JSON list of the minimum temperature, the average temperature, and the max temperature for a given start or start-end range.
-# When given the start only, calculate TMIN, TAVG, and TMAX for all dates greater than and equal to the start date.
-# When given the start and the end date, calculate the TMIN, TAVG, and TMAX for dates between the start and end date inclusive.
+@app.route("/api/v1.0/<date>")
+def get_temp_stats(date):
     session = Session(engine)
-    date = dt.date(2017, 8, 21)
-    results_list = session.query(measurement.date, func.min(measurement.tobs), func.max(measurement.tobs),
-              func.avg(measurement.tobs)).\
-              group_by(measurement.date).\
-              filter(measurement.date >= date).all()
-    for check_date in results_list:
-        check_date = date
+    results_list = session.query(measurement.station, measurement.date, func.min(measurement.tobs), func.max(measurement.tobs),
+    func.avg(measurement.tobs)).\
+    group_by(measurement.date).\
+    filter(measurement.date >= date).all()
+    for the_date in results_list:
+        search_term = date.replace(" ", "").lower()
+        session.close()
         return jsonify(results_list)
-    session.close()
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#     session = Session(engine)
+#     date = dt.date(2017, 8, 21)
+#     results_list = session.query(measurement.date, func.min(measurement.tobs), func.max(measurement.tobs),
+#               func.avg(measurement.tobs)).\
+#               group_by(measurement.date).\
+#               filter(measurement.date >= date).all()
+#     for check_date in results_list:
+#         check_date = date
+#         return jsonify(results_list)
+#     session.close()
+
+# if __name__ == '__main__':
+#     app.run(debug=True)
