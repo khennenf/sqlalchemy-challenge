@@ -35,7 +35,7 @@ def home():
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br>"
         f"/api/v1.0/tobs<br>"
-        f"/api/v1.0/<start>` and `/api/v1.0/<start>/<end>"
+        f"/api/v1.0/<start> and /api/v1.0/<start>/<end>"
     )
 
 
@@ -81,27 +81,40 @@ def tobs():
         filter(measurement.date < latest_date).\
         filter(measurement.date > past_year).all()
     most_active = session.query(measurement.station).\
-        group_by(measurement.station).order_by(func.count(measurement.tobs).desc()).first()   
+    group_by(measurement.station).order_by(func.count(measurement.tobs).desc())
     results = session.query(measurement.station, measurement.date, measurement.tobs).\
-        filter(measurement.station == 'USC00519281').\
+        filter(measurement.station == most_active).\
         filter(measurement.date < past_year_start).\
         filter(measurement.date > previous_year).all()
     session.close()
 
     return jsonify(results)
 #################################    
-@app.route("/api/v1.0/<date>")
-def get_temp_stats(date):
+
+@app.route("/api/v1.0/<start>")
+def get_temp_stats_start(start):
     session = Session(engine)
     results_list = session.query(measurement.station, measurement.date, func.min(measurement.tobs), func.max(measurement.tobs),
     func.avg(measurement.tobs)).\
     group_by(measurement.date).\
-    filter(measurement.date >= date).all()
+    filter(measurement.date >= start).all()
     for the_date in results_list:
-        search_term = date.replace(" ", "").lower()
+        search_term = start.replace(" ", "").lower()
         session.close()
         return jsonify(results_list)
 
+@app.route("/api/v1.0/<start>/<end>")
+def get_temp_stats_start_end(start, end):
+    session = Session(engine)
+    results_list = session.query(measurement.station, measurement.date, func.min(measurement.tobs), func.max(measurement.tobs),
+    func.avg(measurement.tobs)).\
+    group_by(measurement.date).\
+    filter(measurement.date >= start).\
+    filter(measurement.date <= end).all()
+    for the_date in results_list:
+        search_term = start.replace(" ", "").lower()
+        session.close()
+        return jsonify(results_list)
 if __name__ == '__main__':
     app.run(debug=True)
 
